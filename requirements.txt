@@ -1,0 +1,11 @@
+flask
+yfinance
+pandas
+ta
+numpy
+scikit-learn
+textblob
+deep-translator
+GoogleNews
+joblib
+xgboost
