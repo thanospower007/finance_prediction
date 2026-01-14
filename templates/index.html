@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predicción Financiera AI v2.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Add html2pdf for export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+
+    <div class="app-layout">
+        <!-- Sidebar Watchlist -->
+        <aside class="sidebar glass-card">
+            <div class="sidebar-header">
+                <h3>⭐ Watchlist</h3>
+            </div>
+            <ul id="watchlist" class="watchlist-list">
+                <!-- Items added by JS -->
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header>
+                <div class="top-bar">
+                    <h1>Predicción <span class="highlight">Financiera ML</span></h1>
+                    <div class="header-actions">
+                        <button id="themeToggle" class="btn-theme" title="Cambiar Modo">🌓 Modo Claro</button>
+                        <button class="btn-export" onclick="exportReport()">📄 Exportar PDF</button>
+                    </div>
+                </div>
+
+                <nav class="mode-navigator">
+                    <button class="nav-link active" onclick="switchMainMode('analysis')"><i
+                            class="fas fa-chart-line"></i> Análisis</button>
+                    <button class="nav-link" onclick="switchMainMode('simulation')"><i class="fas fa-robot"></i>
+                        Simulación</button>
+                    <button class="nav-link" onclick="switchMainMode('competition')"><i class="fas fa-trophy"></i>
+                        Competición</button>
+                </nav>
+
+                <div class="search-panel glass-card">
+                    <!-- Dynamic Model Selector -->
+                    <div class="model-selection-row">
+                        <label for="aiModelSelect"><i class="fas fa-brain"></i> Cerebro IA:</label>
+                        <select id="aiModelSelect" class="styled-select">
+                            <option value="mlp" selected>Perceptrón Multicapa (MLP) - Ganador</option>
+                            <option value="xgboost">XGBoost - Rápido y Potente</option>
+                            <option value="svm">SVM - Geometría Vectorial</option>
+                            <option value="rf">Random Forest - Bosque Aleatorio</option>
+                            <option value="dt">Decision Tree - Lógica Simple</option>
+                            <option value="knn">KNN - Basado en Vecinos</option>
+                            <option value="logistic">Regresión Logística</option>
+                            <option value="ridge">Ridge Regression</option>
+                            <option value="lda">LDA - Estadístico</option>
+                            <option value="nb">Naive Bayes - Probabilístico</option>
+                        </select>
+                    </div>
+
+                    <div id="search-row-analysis" class="main-search-row">
+                        <div class="input-group large-search">
+                            <i class="fas fa-search icon"></i>
+                            <input type="text" id="tickerInput" placeholder="Símbolo (ej: AAPL, TSLA)" value="AAPL">
+                        </div>
+                        <button id="analyzeBtn" class="glow-on-hover"> <i class="fas fa-bolt"></i> Analizar</button>
+                        <button id="addToWatchlistBtn" class="btn-icon" title="Añadir a favoritos">⭐</button>
+                    </div>
+
+                    <!-- Simulator Row (Hidden by default) -->
+                    <div id="search-row-simulation" class="main-search-row hidden">
+                        <div class="input-group">
+                            <i class="fas fa-search icon"></i>
+                            <input type="text" id="simTicker" placeholder="Ticker" value="AAPL">
+                        </div>
+                        <div class="input-group">
+                            <i class="fas fa-dollar-sign icon"></i>
+                            <input type="number" id="simCapital" placeholder="Capital Inicial" value="10000">
+                        </div>
+                        <div class="input-group">
+                            <i class="fas fa-calendar-alt icon"></i>
+                            <input type="date" id="simStartDate">
+                        </div>
+                        <button id="simulateBtn" class="glow-on-hover btn-green"> <i class="fas fa-vial"></i> Simular
+                            Trading</button>
+                    </div>
+
+                    <!-- Competition Row (Hidden by default) -->
+                    <div id="search-row-competition" class="main-search-row hidden">
+                        <p class="competition-info"><i class="fas fa-info-circle"></i> Los 10 modelos competirán con
+                            carteras aleatorias del S&P 500.</p>
+                        <button id="competitionBtn" class="glow-on-hover btn-gold"> <i class="fas fa-swords"></i>
+                            Iniciar Batalla AI</button>
+                    </div>
+
+                    <details class="advanced-options-container" id="analysis-extra-opts">
+                        <summary>⚙️ Opciones Avanzadas (Backtest, Comparación)</summary>
+                        <div class="advanced-grid">
+                            <div class="input-group">
+                                <label><i class="fas fa-calendar-alt"></i> Backtesting (Fecha):</label>
+                                <input type="date" id="backtestDate">
+                            </div>
+                            <div class="input-group">
+                                <label><i class="fas fa-exchange-alt"></i> Comparar con:</label>
+                                <input type="text" id="compareWith" placeholder="Ticker (ej: MSFT)">
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </header>
+
+            <div id="loading" class="hidden">
+                <div class="loading-animation">
+                    <div class="loader-ring"></div>
+                    <p id="loading-text">Consultando Cerebros de IA...</p>
+                </div>
+            </div>
+
+            <div id="dashboard" class="hidden">
+                <div class="split-view-container">
+                    <!-- Panel A (Main) -->
+                    <div id="panel-a" class="dash-column">
+                        <!-- Asset Info -->
+                        <div class="asset-card glass-card">
+                            <div class="header-row">
+                                <h2 id="assetName-a">--</h2>
+                                <span id="simulation-badge-a" class="badge-sim hidden">SIMULACIÓN</span>
+                            </div>
+                            <p id="assetFullName-a">--</p>
+                            <div class="price-large" id="currentPrice-a">--</div>
+                            <div class="fundamentals-micro-grid">
+                                <div class="fund-item">
+                                    <span class="label">Market Cap</span>
+                                    <span class="val" id="fund-mcap-a">--</span>
+                                </div>
+                                <div class="fund-item">
+                                    <span class="label">P/E Ratio</span>
+                                    <span class="val" id="fund-pe-a">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Prediction Core -->
+                        <div class="ai-card glass-card">
+                            <h3><i class="fas fa-sitemap"></i> Predicción ML Decision Tree</h3>
+                            <div id="ai-grid-a" class="prediction-grid">
+                                <!-- JS Populates: Short, Mid, Long cards -->
+                            </div>
+                            <div id="bt-outcomes-a" class="hidden"></div>
+                        </div>
+
+                        <!-- Sentiment Panel -->
+                        <div class="sentiment-panel glass-card">
+                            <h3>📰 Sentimiento</h3>
+                            <div class="sentiment-content">
+                                <div class="emoji-indicator" id="sentiment-emoji-a">😐</div>
+                                <div class="news-list" id="headlines-list-a"></div>
+                            </div>
+                        </div>
+
+                        <!-- AI Insights Detail (Horizontal Bar Chart) -->
+                        <div class="glass-card ai-insights-card">
+                            <div class="card-header">
+                                <i class="fas fa-microchip"></i>
+                                <h4>Indicadores Clave y Peso de Decisión (IA)</h4>
+                            </div>
+                            <div class="ai-chart-container">
+                                <canvas id="featureImportanceChart-a"></canvas>
+                            </div>
+                            <p class="feature-help-text">Colores indican el estado actual del indicador: <span
+                                    class="text-green">Verde (Favorable)</span>, <span class="text-red">Rojo
+                                    (Desfavorable)</span>.</p>
+                        </div>
+                    </div>
+
+                    <!-- Panel B (Comparison - Hidden by default) -->
+                    <div id="panel-b" class="dash-column hidden">
+                        <!-- Asset Info -->
+                        <div class="asset-card glass-card">
+                            <div class="header-row">
+                                <h2 id="assetName-b">--</h2>
+                            </div>
+                            <p id="assetFullName-b">--</p>
+                            <div class="price-large" id="currentPrice-b">--</div>
+                            <div class="fundamentals-micro-grid">
+                                <div class="fund-item">
+                                    <span class="label">Market Cap</span>
+                                    <span class="val" id="fund-mcap-b">--</span>
+                                </div>
+                                <div class="fund-item">
+                                    <span class="label">P/E Ratio</span>
+                                    <span class="val" id="fund-pe-b">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Prediction Core -->
+                        <div class="ai-card glass-card">
+                            <h3><i class="fas fa-sitemap"></i> Predicción ML Decision Tree</h3>
+                            <div id="ai-grid-b" class="prediction-grid"></div>
+                            <!-- Backtest results usually main only, but let's keep slot -->
+                            <div id="bt-outcomes-b" class="hidden"></div>
+                        </div>
+
+                        <!-- Sentiment Panel -->
+                        <div class="sentiment-panel glass-card">
+                            <h3>📰 Sentimiento</h3>
+                            <div class="sentiment-content">
+                                <div class="emoji-indicator" id="sentiment-emoji-b">😐</div>
+                                <div class="news-list" id="headlines-list-b"></div>
+                            </div>
+                        </div>
+
+                        <!-- AI Insights Detail (Horizontal Bar Chart) -->
+                        <div class="glass-card ai-insights-card">
+                            <div class="card-header">
+                                <i class="fas fa-microchip"></i>
+                                <h4>Indicadores Clave y Peso de Decisión (IA)</h4>
+                            </div>
+                            <div class="ai-chart-container">
+                                <canvas id="featureImportanceChart-b"></canvas>
+                            </div>
+                            <p class="feature-help-text">Colores indican el estado actual del indicador: <span
+                                    class="text-green">Verde (Favorable)</span>, <span class="text-red">Rojo
+                                    (Desfavorable)</span>.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Comparison Table (Dynamic) -->
+                <div id="comparison-section" class="glass-card hidden">
+                    <div class="header-row" style="justify-content: space-between; margin-bottom: 15px;">
+                        <h3 class="table-header" style="margin:0;">📊 Comparativa Detallada (En USD)</h3>
+                        <div class="view-toggles">
+                            <button class="toggle-btn active" onclick="switchComparisonView('table')"><i
+                                    class="fas fa-table"></i>
+                                Tabla</button>
+                            <button class="toggle-btn" onclick="switchComparisonView('chart')"><i
+                                    class="fas fa-chart-bar"></i>
+                                Gráfico</button>
+                        </div>
+                    </div>
+
+                    <div id="comp-table-view" class="table-responsive">
+                        <table class="comparison-table">
+                            <thead>
+                                <tr>
+                                    <th>Métrica</th>
+                                    <th id="th-asset-a">Activo A</th>
+                                    <th id="th-asset-b">Activo B</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Precio Actual (USD)</td>
+                                    <td id="comp-price-a">--</td>
+                                    <td id="comp-price-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>Beta (Volatilidad vs Mercado)</td>
+                                    <td id="comp-beta-a">--</td>
+                                    <td id="comp-beta-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>Volatilidad Anualizada</td>
+                                    <td id="comp-vol-a">--</td>
+                                    <td id="comp-vol-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>Trend (Tendencia técnica)</td>
+                                    <td id="comp-trend-a">--</td>
+                                    <td id="comp-trend-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>P/E Ratio (Valuación)</td>
+                                    <td id="comp-pe-a">--</td>
+                                    <td id="comp-pe-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>Forward P/E</td>
+                                    <td id="comp-fpe-a">--</td>
+                                    <td id="comp-fpe-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>EPS (Beneficio por Acción)</td>
+                                    <td id="comp-eps-a">--</td>
+                                    <td id="comp-eps-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>Dividend Yield</td>
+                                    <td id="comp-div-a">--</td>
+                                    <td id="comp-div-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>Máximo 52 Semanas</td>
+                                    <td id="comp-high-a">--</td>
+                                    <td id="comp-high-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>Mínimo 52 Semanas</td>
+                                    <td id="comp-low-a">--</td>
+                                    <td id="comp-low-b">--</td>
+                                </tr>
+                                <tr class="table-divider">
+                                    <td colspan="3"
+                                        style="text-align: center; background: rgba(255,255,255,0.05); font-weight: bold; color: var(--accent-light);">
+                                        Indicadores Técnicos (Usados por IA)</td>
+                                </tr>
+                                <tr>
+                                    <td>RSI (14 días)</td>
+                                    <td id="comp-rsi-a">--</td>
+                                    <td id="comp-rsi-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>MACD</td>
+                                    <td id="comp-macd-a">--</td>
+                                    <td id="comp-macd-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>Distancia SMA 50 (%)</td>
+                                    <td id="comp-sma50-a">--</td>
+                                    <td id="comp-sma50-b">--</td>
+                                </tr>
+                                <tr>
+                                    <td>Distancia SMA 200 (%)</td>
+                                    <td id="comp-sma200-a">--</td>
+                                    <td id="comp-sma200-b">--</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="comp-chart-view" class="hidden" style="height: 300px;">
+                        <canvas id="comparisonBarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Shared Chart -->
+                <div class="chart-section glass-card">
+                    <h3 id="chart-title">Gráfico de Precio (USD)</h3>
+                    <canvas id="priceChart"></canvas>
+                </div>
+
+                <!-- Simulation specific views -->
+                <div id="simulation-dashboard" class="hidden">
+                    <div class="simulation-progress-container glass-card" style="margin-bottom: 20px;">
+                        <div class="header-row">
+                            <h3>🛰️ Simulación en Tiempo Real</h3>
+                            <span id="sim-status-badge" class="badge-live">EJECUTANDO...</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div id="sim-progress-fill" class="progress-bar-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="live-stats-row">
+                            <div class="live-stat">
+                                <span class="label">Día Actual:</span>
+                                <span id="sim-live-date" class="val">--</span>
+                            </div>
+                            <div class="live-stat">
+                                <span class="label">Patrimonio Actual:</span>
+                                <span id="sim-live-wealth" class="val">--</span>
+                            </div>
+                            <div class="live-stat">
+                                <span class="label">Precio $ (Tick):</span>
+                                <span id="sim-live-price" class="val">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-card big-chart-card">
+                        <h3>📈 Crecimiento del Patrimonio (Capital + Acciones)</h3>
+                        <div style="height: 400px;">
+                            <canvas id="simulationChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="stats-summary-row">
+                        <div class="stat-box glass-card accent-blue-box">
+                            <span class="label">Monto Final</span>
+                            <span id="sim-final-ret" class="val">--</span>
+                        </div>
+                        <div class="stat-box glass-card">
+                            <span class="label">Crecimiento Total %</span>
+                            <span id="sim-final-pct" class="val">--</span>
+                        </div>
+                        <div class="stat-box glass-card" id="sim-efficiency-box">
+                            <span class="label">Eficiencia IA</span>
+                            <span id="sim-efficiency" class="val">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Competition specific views -->
+                <div id="competition-dashboard" class="hidden">
+                    <div class="glass-card">
+                        <h3>🏆 Leaderboard: Competición Maestra de IA</h3>
+                        <p class="subtitle">Ganancias estimadas en carteras aleatorias del S&P 500</p>
+                        <div style="height: 500px;">
+                            <canvas id="competitionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Definitions (Collapsible) -->
+                <details class="glass-card glossary">
+                    <summary>📚 Glosario Financiero y de Modelos AI</summary>
+                    <div class="glossary-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="g-item">
+                            <b>MLP (Cerebro Ganador):</b> Red Neuronal profunda que imita el procesamiento humano para
+                            encontrar patrones ocultos.
+                        </div>
+                        <div class="g-item">
+                            <b>XGBoost:</b> El estándar de la industria; súper rápido y preciso mediante potenciación de
+                            gradiente.
+                        </div>
+                        <div class="g-item">
+                            <b>Simulación:</b> El modelo vive el mercado día a día, tomando decisiones reales con tu
+                            capital inicial.
+                        </div>
+                        <div class="g-item">
+                            <b>EMA (12/26):</b> Medias Móviles Exponenciales; reaccionan más rápido a cambios recientes
+                            de precio.
+                        </div>
+                        <div class="g-item">
+                            <b>Ichimoku (Span A/B):</b> Miden el equilibrio del mercado y proyectan zonas de soporte
+                            futuro (nubes).
+                        </div>
+                        <div class="g-item">
+                            <b>Beta:</b> Mide el riesgo relativo; >1 indica que la acción se mueve más que el mercado
+                            general.
+                        </div>
+                        <div class="g-item">
+                            <b>P/E Ratio:</b> Relación entre precio y ganancias; indica si una acción está cara o barata
+                            históricamente.
+                        </div>
+                        <div class="g-item">
+                            <b>ROE/EPS:</b> Rentabilidad sobre capital y ganancia neta por cada acción emitida.
+                        </div>
+                        <div class="g-item">
+                            <b>Dist 52w High/Low:</b> Qué tan cerca está el precio de sus máximos o mínimos del último
+                            año.
+                        </div>
+                        <div class="g-item">
+                            <b>Market Cap Norm:</b> Tamaño de la empresa en escala logarítmica para análisis comparativo
+                            justo.
+                        </div>
+                        <div class="g-item">
+                            <b>RSI:</b> Fuerza relativa; detecta condiciones de sobrecompra (>70) o sobreventa (<30).
+                                </div>
+                                <div class="g-item">
+                                    <b>MACD Signal:</b> Momentum de tendencia; cruces positivos indican fuerza alcista.
+                                </div>
+                                <div class="g-item">
+                                    <b>Bollinger Bands:</b> Miden la volatilidad; el precio suele rebotar en los
+                                    extremos de las bandas.
+                                </div>
+                                <div class="g-item">
+                                    <b>Dividend Yield:</b> Porcentaje de ganancia anual que la empresa paga solo por
+                                    poseer la acción.
+                                </div>
+                                <div class="g-item">
+                                    <b>Volatility Ann:</b> El "nerviosismo" del activo proyectado a un año; clave para
+                                    la gestión de riesgo.
+                                </div>
+                                <div class="g-item">
+                                    <b>SMA (50/200):</b> Promedios de largo plazo; definen si la tendencia estructural
+                                    es alcista o bajista.
+                                </div>
+                                <div class="g-item">
+                                    <b>Forward P/E:</b> Valoración basada en las ganancias futuras estimadas por los
+                                    analistas.
+                                </div>
+                        </div>
+                </details>
+
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+
+</html>
