@@ -150,7 +150,7 @@ curl -X POST http://localhost:5000/predict \
 4. Asegúrate de que las dependencias nuevas vayan en `requirements.txt`.
 
 ## Licencia y autor
-- Indica aquí la licencia (por defecto no incluida). Si quieres, puedo añadir una licencia sugerida (MIT, Apache 2.0, GPL3).
+- Indica aquí la licencia (por defecto no incluida).
 - Autor: thanospower007 (repositorio: [finance_prediction](https://github.com/thanospower007/finance_prediction))
 
 ## Notas y advertencias
